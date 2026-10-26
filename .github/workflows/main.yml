@@ -1,0 +1,29 @@
+name: CI/CD Pipeline - Demo Kubernetes
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 1. Obtener código fuente del repositorio
+      uses: actions/checkout@v4
+
+    - name: 2. Verificar archivos presentes
+      run: |
+        echo "Revisando archivos del proyecto..."
+        ls -la
+
+    - name: 3. Construir la imagen Docker con el HTML
+      run: |
+        docker build -t mi-app-nginx:v1 .
+        echo "¡Imagen Docker construida exitosamente!"
+
+    - name: 4. Simular despliegue a Kubernetes
+      run: |
+        echo "Conectando al clúster..."
+        echo "Ejecutando: kubectl apply -f deployment.yaml"
+        echo "¡Aplicación desplegada con éxito en Kubernetes!"
