@@ -1,29 +1,72 @@
-name: CI/CD Pipeline - Demo Kubernetes
+name: Laboratorio CI-CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-deploy:
+  validar:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 1. Obtener código fuente del repositorio
+    - name: Descargar codigo
       uses: actions/checkout@v4
 
-    - name: 2. Verificar archivos presentes
+    - name: Verificar sitio web
       run: |
-        echo "Revisando archivos del proyecto..."
-        ls -la
+        test -f site/index.html
+        grep -q "Laboratorio DevOps" site/index.html
 
-    - name: 3. Construir la imagen Docker con el HTML
-      run: |
-        docker build -t mi-app-nginx:v1 .
-        echo "¡Imagen Docker construida exitosamente!"
+    - name: Construir imagen Docker
+      run: docker build -t demo-web:1.0 .
 
-    - name: 4. Simular despliegue a Kubernetes
+    - name: Ejecutar contenedor
+      run: docker run -d --name demo-web -p 8080:80 demo-web:1.0
+
+    - name: Probar respuesta HTTP
       run: |
-        echo "Conectando al clúster..."
-        echo "Ejecutando: kubectl apply -f deployment.yaml"
-        echo "¡Aplicación desplegada con éxito en Kubernetes!"
+        for i in 1 2 3 4 5; do
+          if curl --fail --silent http://localhost:8080/ | grep -q "Laboratorio DevOps"; then
+            echo "Prueba exitosa"
+            exit 0
+          fi
+          sleep 2
+        done
+        exit 1
+
+    - name: Limpiar contenedor
+      if: always()
+      run: docker rm -f demo-web || true
+
+  publicar:
+    needs: validar
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Descargar codigo
+      uses: actions/checkout@v4
+
+    - name: Configurar Pages
+      uses: actions/configure-pages@v5
+
+    - name: Preparar sitio
+      uses: actions/upload-pages-artifact@v4
+      with:
+        path: ./site
+
+    - name: Publicar sitio
+      id: deployment
+      uses: actions/deploy-pages@v4
